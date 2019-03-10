@@ -1,56 +1,50 @@
 def consolidate_cart(cart)
-  # code here
-  con_hash = {}
-  cart.each do |item|
-    item.each do |name, attribute|
-      if con_hash.has_key?(name)
-        con_hash[name][:count] += 1        
-      else 
-        con_hash = con_hash.merge({name => attribute.merge({count: 1})})
+  cart.each_with_object({}) do |item, result|
+    item.each do |type, attributes|
+      if result[type]
+        attributes[:count] += 1
+      else
+        attributes[:count] = 1
+        result[type] = attributes
       end
     end
   end
-  return con_hash
 end
 
 def apply_coupons(cart, coupons)
-  # code here
-  # cart_cons = consolidate_cart(cart: cart)
-  cart_cons = cart
   coupons.each do |coupon|
-    item_name = coupon[:item]
-    if cart_cons.keys.include?(item_name)
-      cart_count = cart_cons[item_name][:count]
-      if cart_count >= coupon[:num]
-        item_coup = {"#{item_name} W/COUPON" => {price: coupon[:cost], clearance: cart_cons[item_name][:clearance], count: cart_count/coupon[:num]}}
-        cart_cons[item_name][:count] %= coupon[:num]
-        cart_cons = cart_cons.merge(item_coup)
+    name = coupon[:item]
+    if cart[name] && cart[name][:count] >= coupon[:num]
+      if cart["#{name} W/COUPON"]
+        cart["#{name} W/COUPON"][:count] += 1
+      else
+        cart["#{name} W/COUPON"] = {:count => 1, :price => coupon[:cost]}
+        cart["#{name} W/COUPON"][:clearance] = cart[name][:clearance]
       end
+      cart[name][:count] -= coupon[:num]
     end
   end
-  return cart_cons
+  cart
 end
 
 def apply_clearance(cart)
-  # code here
-  # cart_cons = consolidate_cart(cart: cart)
-  cart.each do |item, attribute|
-    if attribute[:clearance] == true
-      attribute[:price] = (attribute[:price]*0.8).round(2)
+  cart.each do |name, properties|
+    if properties[:clearance]
+      updated_price = properties[:price] * 0.80
+      properties[:price] = updated_price.round(2)
     end
   end
-  return cart
+  cart
 end
 
 def checkout(cart, coupons)
-  # code here
-  cart_cons = consolidate_cart(cart: cart)
-  cart_coup = apply_coupons(cart:cart_cons, coupons:coupons)
-  cart_check = apply_clearance(cart: cart_coup)
+  consolidated_cart = consolidate_cart(cart)
+  couponed_cart = apply_coupons(consolidated_cart, coupons)
+  final_cart = apply_clearance(couponed_cart)
   total = 0
-  cart_check.each do |item, attribute|
-    total += attribute[:count] * attribute[:price]
+  final_cart.each do |name, properties|
+    total += properties[:price] * properties[:count]
   end
-  return total = total > 100 ? (total*0.9).round(2) : total
+  total = total * 0.9 if total > 100
+  total
 end
-end 
